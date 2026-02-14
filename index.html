@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Music Experience</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Arial Black', Gadget, sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #ui {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            pointer-events: none; /* Чтобы клики проходили сквозь текст на кнопку */
+        }
+
+        #main-text {
+            font-size: 80px;
+            text-transform: uppercase;
+            letter-spacing: 10px;
+            transition: all 0.1s ease;
+            user-select: none;
+        }
+
+        .start-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .start-btn {
+            pointer-events: auto;
+            padding: 20px 50px;
+            font-size: 25px;
+            background: #fff;
+            color: #000;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            letter-spacing: 2px;
+            border-radius: 50px;
+            box-shadow: 0 0 30px #fff;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.1);
+            background: #00f2ff;
+            box-shadow: 0 0 50px #00f2ff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="start-overlay" id="overlay">
+        <button class="start-btn" id="playButton">CLICK TO VIBE</button>
+    </div>
+
+    <div id="ui">
+        <div id="main-text">READY?</div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <audio id="audio" src="ia-pi-ia-dor.mp3" crossorigin="anonymous"></audio>
+
+    <script>
+        const playButton = document.getElementById('playButton');
+        const audio = document.getElementById('audio');
+        const overlay = document.getElementById('overlay');
+        const mainText = document.getElementById('main-text');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let audioCtx, analyser, source, dataArray;
+        let mouse = { x: null, y: null };
+        const phrases = ["VIBE", "FLOW", "ENERGY", "BEAT", "BOOM", "ECHO"];
+
+        // Следим за мышкой для фишки с хвостом
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        playButton.addEventListener('click', () => {
+            setupAudio();
+            audio.play();
+            overlay.style.display = 'none';
+            render();
+        });
+
+        function setupAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            source = audioCtx.createMediaElementSource(audio);
+            source.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            analyser.fftSize = 256;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+        }
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        function render() {
+            requestAnimationFrame(render);
+            analyser.getByteFrequencyData(dataArray);
+
+            // Считаем среднюю громкость
+            let sum = 0;
+            for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            let average = sum / dataArray.length;
+
+            // ФИШКА 1: Меняем текст под бит
+            if (average > 100) {
+                mainText.innerText = phrases[Math.floor(Math.random() * phrases.length)];
+                mainText.style.color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                mainText.style.transform = `scale(${1 + average/150})`;
+                mainText.style.filter = `blur(${average/50}px)`;
+            }
+
+            // ФИШКА 2: Вспышки фона
+            ctx.fillStyle = `rgba(${average/5}, ${average/10}, ${average/4}, 0.2)`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // ФИШКА 3: Рисуем визуализатор-паутину
+            ctx.beginPath();
+            ctx.strokeStyle = `hsl(${average * 2}, 100%, 50%)`;
+            ctx.lineWidth = 2;
+
+            for (let i = 0; i < dataArray.length; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * canvas.height / 2;
+                const x = (canvas.width / dataArray.length) * i;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+
+                // Взаимодействие с мышкой
+                if (mouse.x && Math.abs(x - mouse.x) < 100) {
+                    ctx.lineTo(mouse.x, mouse.y);
+                }
+            }
+            ctx.stroke();
+        }
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
